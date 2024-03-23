@@ -1,5 +1,5 @@
 # KeyPad communication board 
-##Software project v3
+## Software project v3
 
 This project must give Codes of keys pushed in custom KeyPad
 
