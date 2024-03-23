@@ -1,0 +1,6 @@
+# Will be ignored:
+Drivers
+.mxproject
+*.o
+*.d
+*.lst
