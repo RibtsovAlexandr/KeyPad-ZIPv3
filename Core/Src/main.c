@@ -52,6 +52,10 @@
 #define LED_PORT_CLK_ENABLE   __HAL_RCC_GPIOA_CLK_ENABLE
 #define ROWS_PORT_CLK_ENABLE  __HAL_RCC_GPIOB_CLK_ENABLE
 #define COLS_PORT_CLK_ENABLE  __HAL_RCC_GPIOD_CLK_ENABLE
+// for DWIN
+#define REQUEST_FRAME_BUFFER 7
+#define WRITE_FRAME_BUFFER 8
+#define READ_FRAME_BUFFER_DEFAULT 9
 
 /* USER CODE END PD */
 
@@ -97,7 +101,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  uint8_t frame8[WRITE_FRAME_BUFFER] = { 0x5A, 0xA5, 0x05, 0x82, 0x51, 0x03, 0x00, 0xBE};
+  uint8_t frame8_length = WRITE_FRAME_BUFFER;
+  uint8_t REQ_frame[REQUEST_FRAME_BUFFER] = { 0x5A, 0xA5, 0x04, 0x83, 0x51, 0x03, 0x01};
+  uint8_t REQ_frame_length = REQUEST_FRAME_BUFFER;
+  uint8_t READ_frame[READ_FRAME_BUFFER_DEFAULT] = { 0, 0, 0, 0, 0x00, 0x00, 0, 0x00, 0x00};
+  uint8_t READ_frame_length = READ_FRAME_BUFFER_DEFAULT;
+  //const uint16_t DWIN_Slider = 0x5103;
+  //REQ_frame[4] = DWIN_Slider;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -106,7 +117,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -124,6 +135,15 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
   HAL_TIM_Base_Start_IT(&htim3);
+  
+  HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 100);  
+  HAL_Delay(1000);
+
+  printf("Hello, %s!\n", "KeyPad");
+  HAL_Delay(100);
+  printf("For messages we using, %s\n", "USART3");
+  HAL_Delay(2000);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -133,13 +153,24 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    printf("Hello, %s!\n", "KeyPad");
+
     //HAL_UART_Transmit(&huart3, (uint8_t*)"Who's where?\n", 13, 1000);
-    HAL_UART_Transmit(&huart5, (uint8_t*)"Who's where?\n", 13, 1000);
-    HAL_Delay(1000);
-    printf("Hello, %s!\n", "USART3");
-    //HAL_UART_Transmit(&huart3, (uint8_t*)"Hello USART3\n", 13, 1000);
-    HAL_UART_Transmit(&huart5, (uint8_t*)"Wello UART5!\n", 13, 1000);
+    // Send command to DWIN
+    for(int i=0; i<=READ_frame_length; i++){
+      READ_frame[i]=0; // Поэлементная очистка буффера чтения
+    };
+    printf("We will send: %X,%X,%X,%X,%X,%X,%X.\n", REQ_frame[0],REQ_frame[1],REQ_frame[2],REQ_frame[3],REQ_frame[4],REQ_frame[5],REQ_frame[6]);
+    HAL_Delay(500);
+    HAL_UART_Transmit_IT(&huart5, (uint8_t*)REQ_frame, REQ_frame_length);
+    while( HAL_UART_GetState (&huart5) == HAL_UART_STATE_BUSY_TX );
+    HAL_UART_Receive(&huart5, (uint8_t*)READ_frame, READ_frame_length,1000);
+    /*HAL_UART_Receive_IT(&huart5, (uint8_t*)READ_frame, READ_frame_length);
+    while( HAL_UART_GetState (&huart5) == HAL_UART_STATE_BUSY_TX_RX);*/
+    //if( HAL_UART_Receive(&huart5, READ_frame, READ_frame_length, 200) == HAL_OK ) continue;
+    HAL_Delay(500);
+    printf("just readed, %X,%X,%X,%X,%X,%X,%X,%x,%x.\n", READ_frame[0],READ_frame[1],READ_frame[2],READ_frame[3],READ_frame[4],READ_frame[5],READ_frame[6],READ_frame[7],READ_frame[8]);
+    HAL_Delay(500);
+    printf ("May be WE readed, %u.\n",READ_frame[0]);
     HAL_Delay(1000);
   }
   /* USER CODE END 3 */
@@ -252,7 +283,7 @@ static void MX_UART5_Init(void)
 
   /* USER CODE END UART5_Init 1 */
   huart5.Instance = UART5;
-  huart5.Init.BaudRate = 9600;
+  huart5.Init.BaudRate = 115200;
   huart5.Init.WordLength = UART_WORDLENGTH_8B;
   huart5.Init.StopBits = UART_STOPBITS_1;
   huart5.Init.Parity = UART_PARITY_NONE;
