@@ -35,23 +35,47 @@
 #define LED_PORT    GPIOC
 #define LED_PIN     GPIO_PIN_13
 // Rows defines
-#define ROWS_PORT   GPIOB
-#define ROWS_PINS   4
-#define ROW_A_PIN   GPIO_PIN_4
-#define ROW_B_PIN   GPIO_PIN_5
-#define ROW_C_PIN   GPIO_PIN_6
-#define ROW_D_PIN   GPIO_PIN_7
+#define ROWS_PORT   GPIOC
+#define ROWS_PINS   6
+//#define ROW_A_PIN   GPIO_PIN_4
+//#define ROW_B_PIN   GPIO_PIN_5
+//#define ROW_C_PIN   GPIO_PIN_6
+//#define ROW_D_PIN   GPIO_PIN_7
+//#define ROW_E_PIN   GPIO_PIN_8
+//#define ROW_F_PIN   GPIO_PIN_9
 // Columns defines
-#define COLS_PORT   GPIOD
-#define COLS_PINS   3
-#define COL1_PIN    GPIO_PIN_0
-#define COL2_PIN    GPIO_PIN_1
-#define COL3_PIN    GPIO_PIN_2
-#define COL4_PIN    GPIO_PIN_3
+#define COLS_PORT   GPIOC
+#define COLS_PINS   4
+//#define COL1_PIN    GPIO_PIN_0
+//#define COL2_PIN    GPIO_PIN_1
+//#define COL3_PIN    GPIO_PIN_2
+//#define COL4_PIN    GPIO_PIN_3
 
-#define LED_PORT_CLK_ENABLE   __HAL_RCC_GPIOA_CLK_ENABLE
-#define ROWS_PORT_CLK_ENABLE  __HAL_RCC_GPIOB_CLK_ENABLE
-#define COLS_PORT_CLK_ENABLE  __HAL_RCC_GPIOD_CLK_ENABLE
+#define LED_PORT_CLK_ENABLE   __HAL_RCC_GPIOC_CLK_ENABLE
+#define ROWS_PORT_CLK_ENABLE  __HAL_RCC_GPIOC_CLK_ENABLE
+#define COLS_PORT_CLK_ENABLE  __HAL_RCC_GPIOC_CLK_ENABLE
+
+// Keypad Dimension
+const uint8_t ROWS = ROWS_PINS; // Realy I need this? :))
+const uint8_t COLS = COLS_PINS; // Realy I need this? :))
+const uint8_t KeyPushedErrorTicksCount = 3; // contact error ticks counter (must be 2 .. 255)
+const uint8_t KeypadScanPeriod = 10; // Period of Keypad Scaning (in miliseconds)
+
+volatile uint8_t counterCOLS  = 0;
+volatile uint8_t PinSCode     = 0;    // Pin Pad Scan Code
+// Cycles counter for each key
+volatile uint8_t CountKeys[ROWS_PINS][COLS_PINS] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
+
+// Scan (char) codes array
+const char ScanKeys[ROWS_PINS][COLS_PINS] = {
+  { '#', '9', '6', '3' },
+  { '0', '8', '5', '2' },
+  { '*', '7', '4', '1' },
+  { 'R', 'q', 'U', 'D' },
+  { 'Q', 'L', 'e', 'd' },
+  { 'c', 'b', 'a', 'd' }
+};
+
 // for DWIN
 #define REQUEST_FRAME_BUFFER 7
 #define WRITE_FRAME_BUFFER 8
@@ -66,6 +90,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart5;
 UART_HandleTypeDef huart3;
@@ -80,16 +105,27 @@ static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_UART5_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
-
+void KeyPad_Init(void);
+void TimerCallScan (void);
+void ReadRows (uint8_t ColIndex);
+void DeCodePushedRow (uint8_t PushedRow, uint8_t Col);
+void DeCodeReleasedRow (uint8_t ReleasedRow, uint8_t Col);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-  if(htim->Instance == TIM3) //check if the interrupt comes from TIM1
+  if(htim->Instance == TIM3) //check if the interrupt comes from TIM3
+  {
+ //   HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
+    TimerCallScan ();
+  };
+  if(htim->Instance == TIM5) //check if the interrupt comes from TIM5
   {
     HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
+  //  TimerCallScan ();
   }
 }
 /* USER CODE END 0 */
@@ -132,9 +168,11 @@ int main(void)
   MX_USART3_UART_Init();
   MX_UART5_Init();
   MX_TIM3_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   //HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
   HAL_TIM_Base_Start_IT(&htim3);
+  KeyPad_Init();
   
   HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 100);  
   HAL_Delay(1000);
@@ -159,8 +197,8 @@ int main(void)
     for(int i=0; i<=READ_frame_length; i++){
       READ_frame[i]=0; // Поэлементная очистка буффера чтения
     };
-    printf("We will send: %X,%X,%X,%X,%X,%X,%X.\n", REQ_frame[0],REQ_frame[1],REQ_frame[2],REQ_frame[3],REQ_frame[4],REQ_frame[5],REQ_frame[6]);
-    HAL_Delay(500);
+   // printf("We will send: %X,%X,%X,%X,%X,%X,%X.\n", REQ_frame[0],REQ_frame[1],REQ_frame[2],REQ_frame[3],REQ_frame[4],REQ_frame[5],REQ_frame[6]);
+   // HAL_Delay(500);
     HAL_UART_Transmit_IT(&huart5, (uint8_t*)REQ_frame, REQ_frame_length);
     while( HAL_UART_GetState (&huart5) == HAL_UART_STATE_BUSY_TX );
     HAL_UART_Receive(&huart5, (uint8_t*)READ_frame, READ_frame_length,1000);
@@ -168,8 +206,8 @@ int main(void)
     while( HAL_UART_GetState (&huart5) == HAL_UART_STATE_BUSY_TX_RX);*/
     //if( HAL_UART_Receive(&huart5, READ_frame, READ_frame_length, 200) == HAL_OK ) continue;
     HAL_Delay(500);
-    printf("just readed, %X,%X,%X,%X,%X,%X,%X,%x,%x.\n", READ_frame[0],READ_frame[1],READ_frame[2],READ_frame[3],READ_frame[4],READ_frame[5],READ_frame[6],READ_frame[7],READ_frame[8]);
-    HAL_Delay(500);
+   // printf("just readed, %X,%X,%X,%X,%X,%X,%X,%x,%x.\n", READ_frame[0],READ_frame[1],READ_frame[2],READ_frame[3],READ_frame[4],READ_frame[5],READ_frame[6],READ_frame[7],READ_frame[8]);
+   // HAL_Delay(500);
     printf ("May be WE readed, %u.\n",READ_frame[0]);
     HAL_Delay(1000);
   }
@@ -243,7 +281,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 1679;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 50000;
+  htim3.Init.Period = 500;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -264,6 +302,51 @@ static void MX_TIM3_Init(void)
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 1679;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 50000;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
 
 }
 
@@ -352,13 +435,29 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|Coil_0_Pin|Coil_1_Pin|Coil_2_Pin
+                          |Coil_3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Coil_0_Pin Coil_1_Pin Coil_2_Pin Coil_3_Pin */
+  GPIO_InitStruct.Pin = Coil_0_Pin|Coil_1_Pin|Coil_2_Pin|Coil_3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Row_A_Pin Row_B_Pin Row_C_Pin Row_D_Pin
+                           Row_E_Pin Row_F_Pin */
+  GPIO_InitStruct.Pin = Row_A_Pin|Row_B_Pin|Row_C_Pin|Row_D_Pin
+                          |Row_E_Pin|Row_F_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA8 */
@@ -374,6 +473,83 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void DeCodePushedRow (uint8_t PushedRow, uint8_t Col){
+  if (CountKeys[PushedRow][Col] < KeyPushedErrorTicksCount){
+    // We desided that this key is pushed enough
+//    printf("Pushed Pin on Col:%u, Row:%u, Value:%c\n", Col, PushedRow, ScanKeys[PushedRow][Col]);
+    CountKeys[PushedRow][Col]++;
+  };
+}
+
+void DeCodeReleasedRow (uint8_t ReleasedRow, uint8_t Col){
+  if (CountKeys[ReleasedRow][Col] >= KeyPushedErrorTicksCount){
+    printf("Pushed '%c' (Col:%u, Row:%u)\n", ScanKeys[ReleasedRow][Col], Col+1, ReleasedRow+1);
+  };
+  CountKeys[ReleasedRow][Col]=0;
+}
+
+void ReadRows (uint8_t ColIndex){
+
+  // Read ALL Rows and check for pushed or relased condition
+  if( HAL_GPIO_ReadPin(ROWS_PORT, Row_A_Pin) == GPIO_PIN_SET ){
+    DeCodePushedRow(0,ColIndex);
+  } else DeCodeReleasedRow(0,ColIndex);
+  if( HAL_GPIO_ReadPin(ROWS_PORT, Row_B_Pin) == GPIO_PIN_SET ){
+    DeCodePushedRow(1,ColIndex);
+  } else DeCodeReleasedRow(1,ColIndex);
+  if( HAL_GPIO_ReadPin(ROWS_PORT, Row_C_Pin) == GPIO_PIN_SET ){
+    DeCodePushedRow(2,ColIndex);
+  } else DeCodeReleasedRow(2,ColIndex);
+  if( HAL_GPIO_ReadPin(ROWS_PORT, Row_D_Pin) == GPIO_PIN_SET ){
+    DeCodePushedRow(3,ColIndex);
+  } else DeCodeReleasedRow(3,ColIndex);
+  if( HAL_GPIO_ReadPin(ROWS_PORT, Row_E_Pin) == GPIO_PIN_SET ){
+    DeCodePushedRow(4,ColIndex);
+  } else DeCodeReleasedRow(4,ColIndex);
+  if( HAL_GPIO_ReadPin(ROWS_PORT, Row_F_Pin) == GPIO_PIN_SET ){
+    DeCodePushedRow(5,ColIndex);
+  } else DeCodeReleasedRow(5,ColIndex);
+}
+
+void TimerCallScan (void){
+
+  // GPIO_PinState  ReadedState = GPIO_PIN_RESET;
+  HAL_GPIO_WritePin(COLS_PORT, Coil_0_Pin|Coil_1_Pin|Coil_2_Pin|Coil_3_Pin, GPIO_PIN_RESET); // Pins reset
+  switch (counterCOLS % COLS_PINS)
+  {
+    case 0:
+      HAL_GPIO_WritePin(COLS_PORT, Coil_0_Pin, GPIO_PIN_SET);
+      ReadRows(0);
+      break;
+    case 1:
+      HAL_GPIO_WritePin(COLS_PORT, Coil_1_Pin, GPIO_PIN_SET);
+      ReadRows(1);
+      break;
+    case 2:
+      HAL_GPIO_WritePin(COLS_PORT, Coil_2_Pin, GPIO_PIN_SET);
+      ReadRows(2);
+      break;
+    case 3:
+      HAL_GPIO_WritePin(COLS_PORT, Coil_3_Pin, GPIO_PIN_SET);
+      ReadRows(3);
+      break;
+    default:
+      printf("Wrong Counter pins! \n");
+      HAL_Delay (500);
+  };
+  counterCOLS++;  
+}
+
+void KeyPad_Init(void){
+  uint8_t i,j;
+  //                                   Array must be zero inited
+  for ( i=0 ; i <= ROWS ; i++  ){
+      for ( j=0 ; j <= COLS ; j++ ){
+      CountKeys[i][j]=0; 
+    }
+  }
+}
 
 // The following makes printf() write to USART3:
 #define STDOUT_FILENO   1
