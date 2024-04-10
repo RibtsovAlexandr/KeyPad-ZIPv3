@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <stdbool.h> // bool, true, false
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -75,6 +76,11 @@ const char ScanKeys[ROWS_PINS][COLS_PINS] = {
   { 'Q', 'L', 'e', 'd' },
   { 'c', 'b', 'a', 'd' }
 };
+// just scanned Key
+char Key_Pushed ='.';
+bool Key_Obtained = true;
+bool Mode_Measuring = false;
+bool Mode_Measuring_AUTO = true;
 
 // for DWIN
 #define REQUEST_FRAME_BUFFER 7
@@ -137,7 +143,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  uint8_t frame8[WRITE_FRAME_BUFFER] = { 0x5A, 0xA5, 0x05, 0x82, 0x51, 0x03, 0x00, 0xBE};
+  uint8_t frame8[WRITE_FRAME_BUFFER] = { 0x5A, 0xA5, 0x05, 0x82, 0x50, 0x01, 0x00, 0x00};
   uint8_t frame8_length = WRITE_FRAME_BUFFER;
   uint8_t REQ_frame[REQUEST_FRAME_BUFFER] = { 0x5A, 0xA5, 0x04, 0x83, 0x51, 0x03, 0x01};
   uint8_t REQ_frame_length = REQUEST_FRAME_BUFFER;
@@ -194,22 +200,64 @@ int main(void)
 
     //HAL_UART_Transmit(&huart3, (uint8_t*)"Who's where?\n", 13, 1000);
     // Send command to DWIN
-    for(int i=0; i<=READ_frame_length; i++){
+    /*for(int i=0; i<=READ_frame_length; i++){
       READ_frame[i]=0; // Поэлементная очистка буффера чтения
     };
-   // printf("We will send: %X,%X,%X,%X,%X,%X,%X.\n", REQ_frame[0],REQ_frame[1],REQ_frame[2],REQ_frame[3],REQ_frame[4],REQ_frame[5],REQ_frame[6]);
-   // HAL_Delay(500);
     HAL_UART_Transmit_IT(&huart5, (uint8_t*)REQ_frame, REQ_frame_length);
     while( HAL_UART_GetState (&huart5) == HAL_UART_STATE_BUSY_TX );
     HAL_UART_Receive(&huart5, (uint8_t*)READ_frame, READ_frame_length,1000);
-    /*HAL_UART_Receive_IT(&huart5, (uint8_t*)READ_frame, READ_frame_length);
-    while( HAL_UART_GetState (&huart5) == HAL_UART_STATE_BUSY_TX_RX);*/
-    //if( HAL_UART_Receive(&huart5, READ_frame, READ_frame_length, 200) == HAL_OK ) continue;
     HAL_Delay(500);
-   // printf("just readed, %X,%X,%X,%X,%X,%X,%X,%x,%x.\n", READ_frame[0],READ_frame[1],READ_frame[2],READ_frame[3],READ_frame[4],READ_frame[5],READ_frame[6],READ_frame[7],READ_frame[8]);
-   // HAL_Delay(500);
-    printf ("May be WE readed, %u.\n",READ_frame[0]);
-    HAL_Delay(1000);
+    printf ("May be WE readed, %u.\n",READ_frame[0]);*/
+    if (!Key_Obtained){
+      switch (Key_Pushed)
+      {
+      case 'a':
+          frame8[5]=0x01; // пишем в 5001
+          if (Mode_Measuring_AUTO){
+            frame8[7]=0x01; // пишем 1
+            Mode_Measuring_AUTO = false;
+          }else{
+            frame8[7]=0x02; // пишем 2
+            Mode_Measuring_AUTO = true;
+          }
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+          frame8[5]=0x03; // пишем в 5003
+          frame8[7]=0x00; // число  0
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+          frame8[5]=0x04; // пишем в 5004
+          frame8[7]=0x00; // число  0
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+        break;
+      case 'c':
+          Mode_Measuring_AUTO = true;
+          frame8[5]=0x01; // пишем в 5001
+          frame8[7]=0x00; // число  0
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+          frame8[5]=0x03; // пишем в 5003
+          frame8[7]=0x02; // число  1
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+          frame8[5]=0x04; // пишем в 5004
+          frame8[7]=0x00; // число  0
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+        break;
+      case 'd':
+          Mode_Measuring_AUTO = true;
+          frame8[5]=0x01; // пишем в 5001
+          frame8[7]=0x00; // число  0
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+          frame8[5]=0x03; // пишем в 5003
+          frame8[7]=0x00; // число  1
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+          frame8[5]=0x04; // пишем в 5004
+          frame8[7]=0x01; // число  0
+          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
+        break;
+      default:
+        break;
+      } 
+      Key_Obtained = true;
+    };
+//    HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
@@ -484,6 +532,8 @@ void DeCodePushedRow (uint8_t PushedRow, uint8_t Col){
 
 void DeCodeReleasedRow (uint8_t ReleasedRow, uint8_t Col){
   if (CountKeys[ReleasedRow][Col] >= KeyPushedErrorTicksCount){
+    Key_Pushed = ScanKeys[ReleasedRow][Col];
+    Key_Obtained = false;
     printf("Pushed '%c' (Col:%u, Row:%u)\n", ScanKeys[ReleasedRow][Col], Col+1, ReleasedRow+1);
   };
   CountKeys[ReleasedRow][Col]=0;
