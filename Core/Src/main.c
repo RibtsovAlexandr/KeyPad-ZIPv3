@@ -18,7 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include <stdbool.h> // bool, true, false
+#include <stdbool.h>
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -55,6 +56,7 @@
 #define LED_PORT_CLK_ENABLE   __HAL_RCC_GPIOC_CLK_ENABLE
 #define ROWS_PORT_CLK_ENABLE  __HAL_RCC_GPIOC_CLK_ENABLE
 #define COLS_PORT_CLK_ENABLE  __HAL_RCC_GPIOC_CLK_ENABLE
+#define LED_CLK_TICKS   500 //BIG LAMP Togle pin timeout in milliseconds
 
 // Keypad Dimension
 const uint8_t ROWS = ROWS_PINS; // Realy I need this? :))
@@ -101,6 +103,27 @@ TIM_HandleTypeDef htim5;
 UART_HandleTypeDef huart5;
 UART_HandleTypeDef huart3;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for myLamp */
+osThreadId_t myLampHandle;
+const osThreadAttr_t myLamp_attributes = {
+  .name = "myLamp",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for myBtnScan */
+osThreadId_t myBtnScanHandle;
+const osThreadAttr_t myBtnScan_attributes = {
+  .name = "myBtnScan",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -112,6 +135,10 @@ static void MX_USART3_UART_Init(void);
 static void MX_UART5_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM5_Init(void);
+void StartDefaultTask(void *argument);
+void StartLamp(void *argument);
+void StartBtnScan(void *argument);
+
 /* USER CODE BEGIN PFP */
 void KeyPad_Init(void);
 void TimerCallScan (void);
@@ -122,18 +149,7 @@ void DeCodeReleasedRow (uint8_t ReleasedRow, uint8_t Col);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-  if(htim->Instance == TIM3) //check if the interrupt comes from TIM3
-  {
- //   HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
-    TimerCallScan ();
-  };
-  if(htim->Instance == TIM5) //check if the interrupt comes from TIM5
-  {
-    HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
-  //  TimerCallScan ();
-  }
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -190,6 +206,47 @@ int main(void)
 
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of myLamp */
+  myLampHandle = osThreadNew(StartLamp, NULL, &myLamp_attributes);
+
+  /* creation of myBtnScan */
+  myBtnScanHandle = osThreadNew(StartBtnScan, NULL, &myBtnScan_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -329,7 +386,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 1679;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 500;
+  htim3.Init.Period = 50000;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -374,7 +431,7 @@ static void MX_TIM5_Init(void)
   htim5.Instance = TIM5;
   htim5.Init.Prescaler = 1679;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim5.Init.Period = 50000;
+  htim5.Init.Period = 1000;
   htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
@@ -625,6 +682,93 @@ int _write(int file, uint8_t *ptr, int len)
 }
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartLamp */
+/**
+* @brief Function implementing the myLamp thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartLamp */
+void StartLamp(void *argument)
+{
+  /* USER CODE BEGIN StartLamp */
+  /* Infinite loop */
+  for(;;)
+  {
+    HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
+    osDelay(LED_CLK_TICKS);
+  }
+  /* USER CODE END StartLamp */
+}
+
+/* USER CODE BEGIN Header_StartBtnScan */
+/**
+* @brief Function implementing the myBtnScan thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartBtnScan */
+void StartBtnScan(void *argument)
+{
+  /* USER CODE BEGIN StartBtnScan */
+  /* Infinite loop */
+  for(;;)
+  {
+    TimerCallScan();
+    osDelay(10);
+  }
+  /* USER CODE END StartBtnScan */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM2 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM2) {
+    HAL_IncTick();
+  }
+    if(htim->Instance == TIM3) //check if the interrupt comes from TIM3
+  {
+ //   HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
+//    TimerCallScan ();
+  };
+  if(htim->Instance == TIM5) //check if the interrupt comes from TIM5
+  {
+    HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
+  //  TimerCallScan ();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

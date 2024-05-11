@@ -7,4 +7,7 @@ This project must give Codes of keys pushed in custom KeyPad
 Журналы будут сыпаться туда.
 
     DWIN Дисплей подключаем к 5-Вольтовому разъёму USART5
-    
+
+## Переведено на FreeRTOS:
+ * Сканирование клавиатуры,
+ * Контрольная индикация дежурной лампы.
