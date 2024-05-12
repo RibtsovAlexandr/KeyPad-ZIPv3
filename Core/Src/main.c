@@ -19,7 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <stdbool.h>
+#include <stdio.h>
 #include "cmsis_os.h"
+#include "DWIN_menu_logic.c"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -58,6 +60,11 @@
 #define COLS_PORT_CLK_ENABLE  __HAL_RCC_GPIOC_CLK_ENABLE
 #define LED_CLK_TICKS   500 //BIG LAMP Togle pin timeout in milliseconds
 
+#define PROGRAM_LOG_LEVEL_NO  0
+#define PROGRAM_LOG_LEVEL_MED 1
+#define PROGRAM_LOG_LEVEL_MAX 2
+const uint8_t currentLogLevel = 0;
+
 // Keypad Dimension
 const uint8_t ROWS = ROWS_PINS; // Realy I need this? :))
 const uint8_t COLS = COLS_PINS; // Realy I need this? :))
@@ -84,10 +91,11 @@ bool Key_Obtained = true;
 bool Mode_Measuring = false;
 bool Mode_Measuring_AUTO = true;
 
-// for DWIN
+/* for DWIN
 #define REQUEST_FRAME_BUFFER 7
 #define WRITE_FRAME_BUFFER 8
-#define READ_FRAME_BUFFER_DEFAULT 9
+#define READ_FRAME_BUFFER_DEFAULT 9 
+*/
 
 /* USER CODE END PD */
 
@@ -145,6 +153,10 @@ void TimerCallScan (void);
 void ReadRows (uint8_t ColIndex);
 void DeCodePushedRow (uint8_t PushedRow, uint8_t Col);
 void DeCodeReleasedRow (uint8_t ReleasedRow, uint8_t Col);
+
+// void DWIN_setPage(uint8_t pageID);
+// uint8_t DWIN_getPage();
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -203,6 +215,7 @@ int main(void)
   HAL_Delay(100);
   printf("For messages we using, %s\n", "USART3");
   HAL_Delay(2000);
+  DWIN_Menu_Logic_InitProcedure();
 
   /* USER CODE END 2 */
 
@@ -254,67 +267,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-    //HAL_UART_Transmit(&huart3, (uint8_t*)"Who's where?\n", 13, 1000);
-    // Send command to DWIN
-    /*for(int i=0; i<=READ_frame_length; i++){
-      READ_frame[i]=0; // Поэлементная очистка буффера чтения
-    };
-    HAL_UART_Transmit_IT(&huart5, (uint8_t*)REQ_frame, REQ_frame_length);
-    while( HAL_UART_GetState (&huart5) == HAL_UART_STATE_BUSY_TX );
-    HAL_UART_Receive(&huart5, (uint8_t*)READ_frame, READ_frame_length,1000);
-    HAL_Delay(500);
-    printf ("May be WE readed, %u.\n",READ_frame[0]);*/
-    if (!Key_Obtained){
-      switch (Key_Pushed)
-      {
-      case 'a':
-          frame8[5]=0x01; // пишем в 5001
-          if (Mode_Measuring_AUTO){
-            frame8[7]=0x01; // пишем 1
-            Mode_Measuring_AUTO = false;
-          }else{
-            frame8[7]=0x02; // пишем 2
-            Mode_Measuring_AUTO = true;
-          }
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-          frame8[5]=0x03; // пишем в 5003
-          frame8[7]=0x00; // число  0
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-          frame8[5]=0x04; // пишем в 5004
-          frame8[7]=0x00; // число  0
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-        break;
-      case 'c':
-          Mode_Measuring_AUTO = true;
-          frame8[5]=0x01; // пишем в 5001
-          frame8[7]=0x00; // число  0
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-          frame8[5]=0x03; // пишем в 5003
-          frame8[7]=0x02; // число  1
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-          frame8[5]=0x04; // пишем в 5004
-          frame8[7]=0x00; // число  0
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-        break;
-      case 'd':
-          Mode_Measuring_AUTO = true;
-          frame8[5]=0x01; // пишем в 5001
-          frame8[7]=0x00; // число  0
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-          frame8[5]=0x03; // пишем в 5003
-          frame8[7]=0x00; // число  1
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-          frame8[5]=0x04; // пишем в 5004
-          frame8[7]=0x01; // число  0
-          HAL_UART_Transmit(&huart5, (uint8_t*)frame8, frame8_length, 50);  
-        break;
-      default:
-        break;
-      } 
-      Key_Obtained = true;
-    };
-//    HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
@@ -591,7 +543,19 @@ void DeCodeReleasedRow (uint8_t ReleasedRow, uint8_t Col){
   if (CountKeys[ReleasedRow][Col] >= KeyPushedErrorTicksCount){
     Key_Pushed = ScanKeys[ReleasedRow][Col];
     Key_Obtained = false;
-    printf("Pushed '%c' (Col:%u, Row:%u)\n", ScanKeys[ReleasedRow][Col], Col+1, ReleasedRow+1);
+    switch (currentLogLevel)
+    {
+    case PROGRAM_LOG_LEVEL_MED:
+      printf("Pushed '%c'.\n", ScanKeys[ReleasedRow][Col]);
+      osDelay(20);
+      break;
+    case PROGRAM_LOG_LEVEL_MAX:
+      printf("Pushed '%c' on Col:%u, Row:%u.\n", ScanKeys[ReleasedRow][Col], Col, ReleasedRow);
+      osDelay(70);
+      break;
+    default:
+      break;
+    }
   };
   CountKeys[ReleasedRow][Col]=0;
 }
@@ -642,8 +606,10 @@ void TimerCallScan (void){
       ReadRows(3);
       break;
     default:
-      printf("Wrong Counter pins! \n");
-      HAL_Delay (500);
+      if (currentLogLevel!=PROGRAM_LOG_LEVEL_NO){
+        printf("Wrong Counter pins! \n");
+        osDelay(50);
+      } 
   };
   counterCOLS++;  
 }
@@ -681,6 +647,24 @@ int _write(int file, uint8_t *ptr, int len)
   return len;
 }
 
+// DWIN functions section
+
+// Change Page 
+void DWIN_setPage(uint8_t page){
+    //5A A5 07 82 00 84 5a 01 00 02
+    uint8_t sendBuffer[] = {CMD_HEAD1, CMD_HEAD2, 0x07, CMD_WRITE, 0x00, 0x84, 0x5A, 0x01, 0x00, page};
+    HAL_UART_Transmit(&huart5, (uint8_t*)sendBuffer, sizeof(sendBuffer), CMD_SEND_TIMEOUT); 
+    //readDWIN();
+}
+
+// Get Current Page ID
+uint8_t DWIN_getPage(){
+    uint8_t sendBuffer[] = {CMD_HEAD1, CMD_HEAD2, 0x04, CMD_READ, 0x00 , 0x14, 0x01};
+    HAL_UART_Transmit(&huart5, (uint8_t*)sendBuffer, sizeof(sendBuffer), CMD_SEND_TIMEOUT); 
+    //return readCMDLastByte();
+    return 0;
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -693,10 +677,35 @@ int _write(int file, uint8_t *ptr, int len)
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
+  uint8_t tmpSelectedMenuItemNumber;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    if (!Key_Obtained){
+      switch (Key_Pushed)
+      {
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+          tmpSelectedMenuItemNumber = (uint8_t)(Key_Pushed-'0');
+          //printf("main: Try switch to %d page\n", tmpSelectedMenuItemNumber);
+          MenuItemSwitch((MenuItem)tmpSelectedMenuItemNumber);
+          osDelay(50);
+          ///DWIN_setPage(tmpSelectedMenuItemNumber);
+        break;
+      default:
+          printf("No key trap\n");
+          osDelay(20);
+        break;
+      } 
+      Key_Obtained = true;
+    };
+    osDelay(100);
   }
   /* USER CODE END 5 */
 }

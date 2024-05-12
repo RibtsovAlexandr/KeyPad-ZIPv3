@@ -1,5 +1,6 @@
 {
     "stm32-for-vscode.openOCDPath": false,
     "stm32-for-vscode.makePath": "/usr/bin/make",
-    "stm32-for-vscode.armToolchainPath": "/usr/bin"
+    "stm32-for-vscode.armToolchainPath": "/usr/bin",
+    "C_Cpp.errorSquiggles": "disabled"
 }

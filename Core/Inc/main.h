@@ -57,6 +57,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+// Columns defines
 #define Coil_0_Pin GPIO_PIN_0
 #define Coil_0_GPIO_Port GPIOC
 #define Coil_1_Pin GPIO_PIN_1
@@ -65,6 +66,7 @@ void Error_Handler(void);
 #define Coil_2_GPIO_Port GPIOC
 #define Coil_3_Pin GPIO_PIN_3
 #define Coil_3_GPIO_Port GPIOC
+// Rows defines
 #define Row_A_Pin GPIO_PIN_4
 #define Row_A_GPIO_Port GPIOC
 #define Row_B_Pin GPIO_PIN_5
