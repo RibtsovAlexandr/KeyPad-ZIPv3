@@ -1,18 +1,17 @@
-/*
-* DWIN DGUS DWIN Library for STM32 
+/******************************************************************************
+* DWIN Display Library for my STM32 project
 * @author Alexandr Ribtsov 
 * light Remake of
 * Library Supports all Basic Function
 * Created by Tejeet ( tejeet@dwin.com.cn ) 
-* Please Checkout Latest Offerings FROM DWIN 
 * Here : https://www.dwin-global.com/
 */
 // DWIN.h
-#ifndef DWIN_H // include guard
+#if !defined DWIN_H // include guard
 #define DWIN_H
 
 //#include <stdio.h>
-//#include <stdint.h>
+#include <stdint.h>
 #include "stm32f4xx_hal.h"
 
 #define DWIN_DEFAULT_BAUD_RATE      115200
@@ -22,7 +21,6 @@
 #define REQUEST_FRAME_BUFFER 7
 #define WRITE_FRAME_BUFFER 8
 #define READ_FRAME_BUFFER_DEFAULT 9
-
 
 #define CMD_HEAD1           0x5A
 #define CMD_HEAD2           0xA5
@@ -37,14 +35,10 @@
 #define READ_TIMEOUT        100
 
 
-/*
 // set Current Page ID
 void DWIN_setPage(UART_HandleTypeDef *huart, uint8_t pageID);
 // get Current Page ID
-uint8_t DWIN_getPage();
-*/
-void DWIN_setPage(uint8_t pageID);
-uint8_t DWIN_getPage();
+uint8_t DWIN_getPage(UART_HandleTypeDef *huart);
 
 
 #endif /* DWIN_H */

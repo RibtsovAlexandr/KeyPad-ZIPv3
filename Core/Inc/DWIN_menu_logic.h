@@ -1,6 +1,16 @@
+/******************************************************************************
+* DWIN Menu logic Library for my STM32 project
+* @author Alexandr Ribtsov 
+*******************************************************************************/
+
 // DWIN_menu_logic.h
-#ifndef DWIN_MENU_LOGIC_H // include guard
+#if !defined DWIN_MENU_LOGIC_H // include guard
 #define DWIN_MENU_LOGIC_H
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include "DWIN.h"
 
     // Идентификатор отображаемого пункта меню.
 #define FIRST_MENU_PARAMETRE    MeasureParams           //начальный пункт: меню ввода параметров измерения
@@ -23,7 +33,10 @@ void MenuItemSwitch (MenuItem newItem);
 void ShowMenu (MenuItem Item);
 void DWIN_Menu_Logic_InitProcedure (void);
 bool MayChangeMenu (MenuItem newItem);
-void DWIN_setPage(uint8_t page);
+//void DWIN_setPage(uint8_t page);
 uint8_t DWIN_getPage();
 
-#endif /* DWIN_H */
+// Using DWIN display attached at UART5
+extern UART_HandleTypeDef huart5;
+
+#endif /* DWIN_MENU_LOGIC_H */

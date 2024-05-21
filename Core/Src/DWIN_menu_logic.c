@@ -1,15 +1,10 @@
 /******************************************************************************
-
-Welcome to GDB Online.
-GDB online is an online compiler and debugger tool for C, C++, Python, Java, PHP, Ruby, Perl,
-C#, OCaml, VB, Swift, Pascal, Fortran, Haskell, Objective-C, Assembly, HTML, CSS, JS, SQLite, Prolog.
-Code, Compile, Run and Debug online from anywhere in world.
-
+* DWIN Menu logic Library for my STM32 project
+* @author Alexandr Ribtsov 
+* Debudded in GDB Online.
+* GDB online is an online compiler and debugger tool for C, C++/*
 *******************************************************************************/
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include "DWIN.h"
+
 #include "DWIN_menu_logic.h"
 
 // variables
@@ -66,7 +61,7 @@ bool MayChangeMenu (MenuItem newItem){
 void DWIN_Menu_Logic_InitProcedure (void){
     CurrentMenuItem = MeasureParams;
     ShowMenu(CurrentMenuItem);
-    DWIN_setPage(CurrentMenuItem);
+    DWIN_setPage(&huart5, CurrentMenuItem);
 }
 
 void ShowMenu(MenuItem Item){
@@ -106,7 +101,7 @@ void MenuItemSwitch(MenuItem newItem){
     if (MayChangeMenu(newItem)){
         CurrentMenuItem=newItem;
         ShowMenu(CurrentMenuItem);
-        DWIN_setPage(CurrentMenuItem);
+        DWIN_setPage(&huart5, CurrentMenuItem);
         //printf(" switched.\n");
     }
 }
