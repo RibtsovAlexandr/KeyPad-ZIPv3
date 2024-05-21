@@ -7,6 +7,7 @@
 * Here : https://www.dwin-global.com/
 */
 // DWIN.h
+#pragma once
 #if !defined DWIN_H // include guard
 #define DWIN_H
 

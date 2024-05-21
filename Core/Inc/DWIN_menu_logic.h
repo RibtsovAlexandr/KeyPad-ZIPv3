@@ -4,6 +4,7 @@
 *******************************************************************************/
 
 // DWIN_menu_logic.h
+#pragma once
 #if !defined DWIN_MENU_LOGIC_H // include guard
 #define DWIN_MENU_LOGIC_H
 
