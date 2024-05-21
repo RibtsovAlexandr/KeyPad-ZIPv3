@@ -7,13 +7,14 @@
 * Please Checkout Latest Offerings FROM DWIN 
 * Here : https://www.dwin-global.com/
 */
+// DWIN.h
+#ifndef DWIN_H // include guard
+#define DWIN_H
 
 //#include <stdio.h>
 //#include <stdint.h>
-/*
-#ifndef DWIN_H
-#define DWIN_H
-*/
+#include "stm32f4xx_hal.h"
+
 #define DWIN_DEFAULT_BAUD_RATE      115200
 #define ARDUINO_RX_PIN              10
 #define ARDUINO_TX_PIN              11
@@ -44,3 +45,6 @@ uint8_t DWIN_getPage();
 */
 void DWIN_setPage(uint8_t pageID);
 uint8_t DWIN_getPage();
+
+
+#endif /* DWIN_H */

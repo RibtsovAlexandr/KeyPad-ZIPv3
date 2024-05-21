@@ -655,7 +655,7 @@ void DWIN_setPage(uint8_t page){
     uint8_t sendBuffer[] = {CMD_HEAD1, CMD_HEAD2, 0x07, CMD_WRITE, 0x00, 0x84, 0x5A, 0x01, 0x00, page};
     HAL_UART_Transmit(&huart5, (uint8_t*)sendBuffer, sizeof(sendBuffer), CMD_SEND_TIMEOUT); 
     //readDWIN();
-}
+} 
 
 // Get Current Page ID
 uint8_t DWIN_getPage(){
